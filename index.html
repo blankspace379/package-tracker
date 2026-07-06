@@ -1133,15 +1133,26 @@
     function getPlatformName(id) { return (PLATFORMS.find(x => x.id === id) || PLATFORMS[7]).name; }
     function getLatestContext(p) { return (p.trackingNodes && p.trackingNodes.length > 0) ? (p.trackingNodes[0].context || '暂无物流信息') : '暂无物流信息'; }
     function statusLabel(s) { return { pending:'待揽件', inTransit:'运输中', outForDelivery:'派送中', delivered:'已签收', returned:'已退回', exception:'异常' }[s] || s; }
+    function safeDate(d) {
+        if (!d) return null;
+        try {
+            // Safari needs T separator in ISO format
+            const str = String(d).replace(' ', 'T');
+            const date = new Date(str);
+            if (isNaN(date.getTime())) return null;
+            return date;
+        } catch(e) { return null; }
+    }
     function formatRelativeTime(d) {
-        if (!d) return '';
-        const diff = new Date() - new Date(d);
+        const date = safeDate(d);
+        if (!date) return '';
+        const diff = Date.now() - date.getTime();
         const mins = Math.floor(diff/60000), hrs = Math.floor(diff/3600000), days = Math.floor(diff/86400000);
         if (mins < 1) return '刚刚';
         if (mins < 60) return `${mins}分钟前`;
         if (hrs < 24) return `${hrs}小时前`;
         if (days < 7) return `${days}天前`;
-        return new Date(d).toLocaleDateString('zh-CN', { month:'short', day:'numeric' });
+        try { return date.toLocaleDateString('zh-CN', { month:'short', day:'numeric' }); } catch(e) { return ''; }
     }
     function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
@@ -1261,7 +1272,8 @@
         const container = document.getElementById('detailContent');
         const nodes = pkg.trackingNodes || [];
         const heroEmoji = { pending:'⏳', inTransit:'🚚', outForDelivery:'🏃', delivered:'✅', returned:'↩️', exception:'⚠️' }[pkg.status] || '📦';
-        const estDelivery = pkg.estimatedDelivery ? `<div class="sub">预计 ${new Date(pkg.estimatedDelivery).toLocaleDateString('zh-CN')} 送达</div>` : '';
+        const ed = safeDate(pkg.estimatedDelivery);
+        const estDelivery = ed ? `<div class="sub">预计 ${ed.toLocaleDateString('zh-CN')} 送达</div>` : '';
         const daysInTransit = nodes.length > 0 ? Math.ceil((new Date() - new Date(nodes[nodes.length-1].time))/86400000) : 0;
 
         container.innerHTML = `
@@ -1277,7 +1289,7 @@
                 <div class="info-row"><span class="label">来源平台</span><span class="value">${getPlatformIcon(pkg.platform)} ${getPlatformName(pkg.platform)}</span></div>
                 ${pkg.description ? `<div class="info-row"><span class="label">描述</span><span class="value">${escapeHtml(pkg.description)}</span></div>` : ''}
                 ${pkg.notes ? `<div class="info-row"><span class="label">备注</span><span class="value">${escapeHtml(pkg.notes)}</span></div>` : ''}
-                <div class="info-row"><span class="label">最后更新</span><span class="value">${new Date(pkg.lastUpdate).toLocaleString('zh-CN')}</span></div>
+                <div class="info-row"><span class="label">最后更新</span><span class="value">${safeDate(pkg.lastUpdate)?.toLocaleString('zh-CN') || '--'}</span></div>
             </div>
             ${nodes.length > 0 ? `
                 <div class="timeline-title">📋 物流轨迹</div>
@@ -1291,7 +1303,7 @@
                             <div class="tl-content">
                                 <div class="tl-context">${escapeHtml(node.context)}</div>
                                 <div class="tl-meta">
-                                    ${new Date(node.time).toLocaleString('zh-CN', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                                    ${safeDate(node.time)?.toLocaleString('zh-CN', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) || '--'}
                                     ${node.location ? ' · ' + escapeHtml(node.location) : ''}
                                     ${node.status ? ' · ' + escapeHtml(node.status) : ''}
                                 </div>
