@@ -562,6 +562,10 @@
         <div id="guideContent"></div>
     </div>
 
+    <!-- DEBUG PANEL -->
+    <div id="debugPanel" style="position:fixed;bottom:90px;left:8px;right:8px;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:11px;padding:10px;border-radius:10px;z-index:500;max-height:200px;overflow-y:auto;display:none;line-height:1.6;white-space:pre-wrap;word-break:break-all;"></div>
+    <button id="debugToggle" onclick="var d=document.getElementById('debugPanel');d.style.display=d.style.display==='none'?'block':'none'" style="position:fixed;bottom:90px;right:8px;z-index:501;background:rgba(0,0,0,0.7);color:#0f0;border:1px solid #0f0;border-radius:8px;padding:4px 8px;font-size:10px;cursor:pointer;">🐛</button>
+
     <!-- TOAST -->
     <div class="toast" id="toast"></div>
 
@@ -1160,37 +1164,65 @@
     //  ACTIONS
     // ============================
 
+    function debugLog(msg) {
+        const el = document.getElementById('debugPanel');
+        if (el) el.innerHTML += msg + '<br>';
+        console.log(msg);
+    }
     async function addPackage() {
-        const trackingNumber = document.getElementById('trackingInput').value.trim();
-        if (!trackingNumber) return;
-        if (packages.some(p => p.trackingNumber === trackingNumber && !p.isArchived)) {
-            showToast('⚠️ 该运单号已存在'); return;
-        }
-        const desc = document.getElementById('descInput').value.trim();
-        const notes = document.getElementById('notesInput').value.trim();
-        const btn = document.getElementById('btnSubmit');
-        btn.disabled = true; btn.textContent = '查询中...';
-
-        let platform = selectedPlatform;
-        if (platform === 'other') {
-            const combined = (desc + notes).toLowerCase();
-            for (const p of PLATFORMS) {
-                if (p.id === 'other') continue;
-                if (p.patterns.some(pat => pat.test(combined))) { platform = p.id; break; }
-            }
-        }
-
+        const debug = document.getElementById('debugPanel');
+        if (debug) debug.innerHTML = '';
         try {
+            debugLog('[1] 开始添加...');
+            const trackingNumber = document.getElementById('trackingInput').value.trim();
+            debugLog('[2] 单号: ' + trackingNumber);
+            if (!trackingNumber) { debugLog('[失败] 单号为空'); return; }
+            if (packages.some(p => p.trackingNumber === trackingNumber && !p.isArchived)) {
+                debugLog('[失败] 单号已存在');
+                showToast('⚠️ 该运单号已存在'); return;
+            }
+            const desc = document.getElementById('descInput').value.trim();
+            const notes = document.getElementById('notesInput').value.trim();
+            const btn = document.getElementById('btnSubmit');
+            btn.disabled = true; btn.textContent = '查询中...';
+
+            let platform = selectedPlatform;
+            if (platform === 'other') {
+                const combined = (desc + notes).toLowerCase();
+                for (const p of PLATFORMS) {
+                    if (p.id === 'other') continue;
+                    if (p.patterns.some(pat => pat.test(combined))) { platform = p.id; break; }
+                }
+            }
+            debugLog('[3] 平台: ' + platform);
+
             const carrier = detectCarrier(trackingNumber);
+            debugLog('[4] 快递: ' + (carrier ? carrier.name : '未识别'));
+
+            debugLog('[5] 查询API...');
             const pkg = await queryRealAPI(trackingNumber, carrier?.code);
-            pkg.description = desc || `包裹 ${trackingNumber.slice(-6)}`;
+            debugLog('[6] API返回: ' + JSON.stringify({status: pkg.status, carrier: pkg.carrierName, lastUpdate: pkg.lastUpdate}));
+
+            pkg.description = desc || ('包裹 ' + trackingNumber.slice(-6));
             pkg.notes = notes || '';
             pkg.platform = platform;
+            debugLog('[7] 准备保存...');
+
             packages.unshift(pkg);
-            saveData(); renderList();
+            debugLog('[8] 已加入列表, 共 ' + packages.length + ' 个包裹');
+
+            saveData();
+            debugLog('[9] 已保存到本地存储');
+
+            renderList();
+            debugLog('[10] 渲染完成');
+
             closeAddModal();
             showToast('✅ 包裹已添加');
-        } catch(e) { showToast('❌ 添加失败: ' + e.message); }
+        } catch(e) {
+            debugLog('[ERROR] ' + e.message + ' | stack: ' + (e.stack || '').split('\n').slice(0,3).join(' | '));
+            showToast('❌ 添加失败: ' + e.message);
+        }
         btn.disabled = false; btn.textContent = '添加包裹';
     }
 
