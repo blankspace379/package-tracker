@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="包裹追踪">
+    <meta name="theme-color" content="#f2f2f7">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23007AFF'/><text x='90' y='115' font-size='100' text-anchor='middle' fill='white'>📦</text></svg>">
+    <title>包裹追踪</title>
+    <style>
+        :root {
+            --bg: #f2f2f7;
+            --card-bg: #ffffff;
+            --text: #1c1c1e;
+            --secondary: #8e8e93;
+            --blue: #007AFF;
+            --green: #34C759;
+            --orange: #FF9500;
+            --red: #FF3B30;
+            --purple: #AF52DE;
+            --gray: #8E8E93;
+            --separator: #e5e5ea;
+            --card-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1c1c1e;
+                --card-bg: #2c2c2e;
+                --text: #f5f5f7;
+                --secondary: #98989d;
+                --separator: #38383a;
+                --card-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            padding-bottom: calc(84px + var(--safe-bottom));
+        }
+
+        /* HEADER */
+        .header {
+            background: var(--card-bg);
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--separator);
+        }
+        .header-top { display: flex; align-items: center; justify-content: space-between; }
+        .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+        .header-actions { display: flex; gap: 8px; }
+        .btn-icon {
+            width: 36px; height: 36px; border-radius: 50%; border: none;
+            background: var(--bg); color: var(--blue); font-size: 18px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.2s; position: relative;
+        }
+        .btn-icon:active { opacity: 0.6; }
+        .btn-icon.spinning svg { animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .badge-dot {
+            position: absolute; top: 4px; right: 4px;
+            width: 8px; height: 8px; background: var(--red); border-radius: 50%;
+            border: 1.5px solid var(--card-bg);
+        }
+
+        /* CLIPBOARD BANNER */
+        .clipboard-banner {
+            margin: 8px 16px; padding: 12px 14px;
+            background: rgba(0,122,255,0.08); border: 1px solid rgba(0,122,255,0.2);
+            border-radius: 12px; display: flex; align-items: center; gap: 10px;
+            cursor: pointer; transition: opacity 0.2s; animation: slideDown 0.3s ease;
+        }
+        .clipboard-banner:active { opacity: 0.7; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .clipboard-banner .cb-icon { font-size: 28px; }
+        .clipboard-banner .cb-info { flex: 1; }
+        .clipboard-banner .cb-title { font-size: 14px; font-weight: 600; }
+        .clipboard-banner .cb-sub { font-size: 12px; color: var(--secondary); margin-top: 2px; }
+        .clipboard-banner .cb-btn {
+            padding: 8px 16px; border-radius: 18px; border: none;
+            background: var(--blue); color: #fff; font-size: 13px;
+            font-weight: 600; cursor: pointer; white-space: nowrap;
+        }
+
+        /* STATS BAR */
+        .stats-bar {
+            display: flex; gap: 6px; padding: 4px 16px; overflow-x: auto;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .stats-bar::-webkit-scrollbar { display: none; }
+        .stat-chip {
+            flex-shrink: 0; padding: 6px 14px; border-radius: 20px;
+            font-size: 13px; font-weight: 500; border: none;
+            background: var(--card-bg); color: var(--text);
+            cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .stat-chip.active { background: var(--blue); color: #fff; }
+        .stat-chip .count { font-size: 12px; opacity: 0.7; margin-left: 2px; }
+
+        /* SMART SCAN BUTTON */
+        .smart-scan-btn {
+            display: flex; align-items: center; gap: 10px;
+            margin: 4px 16px 2px; padding: 12px 16px;
+            background: var(--card-bg); border-radius: 12px;
+            box-shadow: var(--card-shadow); cursor: pointer;
+            border: 1.5px dashed var(--blue); transition: all 0.2s;
+        }
+        .smart-scan-btn:active { background: rgba(0,122,255,0.04); }
+        .smart-scan-btn .ss-icon { font-size: 32px; }
+        .smart-scan-btn .ss-text { flex: 1; }
+        .smart-scan-btn .ss-title { font-size: 15px; font-weight: 600; color: var(--blue); }
+        .smart-scan-btn .ss-sub { font-size: 12px; color: var(--secondary); margin-top: 2px; }
+
+        /* PACKAGE LIST */
+        .package-list { padding: 4px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+        .package-card {
+            background: var(--card-bg); border-radius: 14px; padding: 14px 16px;
+            box-shadow: var(--card-shadow); cursor: pointer; transition: transform 0.15s, opacity 0.2s;
+            display: flex; gap: 12px; align-items: center; position: relative;
+        }
+        .package-card:active { transform: scale(0.98); }
+        .package-card.archived { opacity: 0.5; }
+
+        .platform-icon {
+            width: 44px; height: 44px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; flex-shrink: 0;
+        }
+        .platform-pinduoduo { background: rgba(255,59,48,0.12); color: #FF3B30; }
+        .platform-taobao { background: rgba(255,149,0,0.12); color: #FF9500; }
+        .platform-tmall { background: rgba(255,45,85,0.12); color: #ff2d55; }
+        .platform-jd { background: rgba(0,122,255,0.12); color: #007AFF; }
+        .platform-douyin { background: rgba(0,200,200,0.12); color: #00c8c8; }
+        .platform-kuaishou { background: rgba(255,204,0,0.12); color: #ffcc00; }
+        .platform-xiaohongshu { background: rgba(255,59,48,0.12); color: #FF3B30; }
+        .platform-other { background: rgba(142,142,147,0.12); color: #8E8E93; }
+
+        .card-info { flex: 1; min-width: 0; }
+        .card-info .carrier { font-size: 15px; font-weight: 600; }
+        .card-info .desc {
+            font-size: 13px; color: var(--secondary); margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .card-info .latest {
+            font-size: 12px; color: var(--secondary); opacity: 0.8; margin-top: 2px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .card-meta { text-align: right; flex-shrink: 0; }
+        .card-meta .time { font-size: 11px; color: var(--secondary); }
+        .card-meta .number { font-size: 11px; color: var(--secondary); opacity: 0.7; margin-top: 2px; }
+
+        .status-badge {
+            display: inline-block; font-size: 10px; font-weight: 600;
+            padding: 2px 7px; border-radius: 10px; margin-left: 6px;
+        }
+        .status-pending { background: rgba(255,149,0,0.12); color: #FF9500; }
+        .status-inTransit { background: rgba(0,122,255,0.12); color: #007AFF; }
+        .status-outForDelivery { background: rgba(175,82,222,0.12); color: #AF52DE; }
+        .status-delivered { background: rgba(52,199,89,0.12); color: #34C759; }
+        .status-returned { background: rgba(142,142,147,0.12); color: #8E8E93; }
+        .status-exception { background: rgba(255,59,48,0.12); color: #FF3B30; }
+
+        /* EMPTY STATE */
+        .empty-state {
+            text-align: center; padding: 40px 20px 60px; color: var(--secondary);
+        }
+        .empty-state .icon { font-size: 64px; opacity: 0.5; margin-bottom: 16px; }
+        .empty-state h3 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+        .empty-state p { font-size: 14px; opacity: 0.7; line-height: 1.5; }
+        .empty-state .btn-add {
+            margin-top: 20px; padding: 12px 32px; border-radius: 24px;
+            border: none; background: var(--blue); color: #fff;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+        }
+
+        /* BOTTOM NAV */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--card-bg); border-top: 1px solid var(--separator);
+            display: flex; padding: 6px 0 var(--safe-bottom); z-index: 100;
+        }
+        .nav-item {
+            flex: 1; display: flex; flex-direction: column; align-items: center;
+            gap: 2px; padding: 6px 0; cursor: pointer; color: var(--secondary);
+            font-size: 10px; font-weight: 500; border: none; background: none;
+            transition: color 0.2s;
+        }
+        .nav-item.active { color: var(--blue); }
+        .nav-item .nav-icon { font-size: 22px; }
+
+        /* MODAL */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: var(--card-bg); border-radius: 16px 16px 0 0;
+            width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+            padding: 8px 0 var(--safe-bottom);
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .modal-overlay.show .modal { transform: translateY(0); }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 16px 12px;
+        }
+        .modal-header h2 { font-size: 18px; font-weight: 600; }
+        .modal-header .btn-close {
+            width: 28px; height: 28px; border-radius: 50%;
+            border: none; background: var(--separator); color: var(--text);
+            font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+
+        .form-group { padding: 8px 16px; }
+        .form-group label {
+            display: block; font-size: 12px; font-weight: 600; color: var(--secondary);
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%; padding: 12px 14px; border: 1px solid var(--separator);
+            border-radius: 10px; background: var(--bg); color: var(--text);
+            font-size: 16px; font-family: inherit; outline: none; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group textarea:focus { border-color: var(--blue); }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+
+        .platform-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 16px;
+        }
+        .platform-btn {
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            padding: 10px 6px; border-radius: 12px; border: 2px solid transparent;
+            background: var(--bg); cursor: pointer; font-size: 11px;
+            color: var(--secondary); transition: all 0.2s;
+        }
+        .platform-btn.selected { border-color: var(--blue); background: rgba(0,122,255,0.06); color: var(--blue); }
+        .platform-btn .pf-icon { font-size: 24px; }
+
+        .detected-carrier {
+            margin: 4px 16px; padding: 10px 14px; border-radius: 10px;
+            font-size: 13px; display: flex; align-items: center; gap: 8px;
+        }
+        .detected-carrier.success { background: rgba(52,199,89,0.1); color: #34C759; }
+        .detected-carrier.warning { background: rgba(255,149,0,0.1); color: #FF9500; }
+
+        .btn-submit {
+            display: block; width: calc(100% - 32px); margin: 16px; padding: 14px;
+            border-radius: 12px; border: none; background: var(--blue); color: #fff;
+            font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+        }
+        .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-submit:active:not(:disabled) { opacity: 0.8; }
+
+        /* DETAIL OVERLAY */
+        .detail-overlay {
+            position: fixed; inset: 0; background: var(--bg); z-index: 300;
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+            overflow-y: auto;
+        }
+        .detail-overlay.show { transform: translateX(0); }
+        .detail-header {
+            background: var(--card-bg); padding: 12px 16px; display: flex;
+            align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10;
+            border-bottom: 1px solid var(--separator);
+        }
+        .detail-header .btn-back {
+            width: 32px; height: 32px; border-radius: 50%; border: none;
+            background: var(--bg); color: var(--blue); font-size: 16px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .detail-header h3 { font-size: 17px; font-weight: 600; flex: 1; }
+
+        .status-hero {
+            text-align: center; padding: 28px 20px 20px; background: var(--card-bg);
+        }
+        .status-hero .hero-icon {
+            width: 68px; height: 68px; border-radius: 50%; display: inline-flex;
+            align-items: center; justify-content: center; font-size: 32px; margin-bottom: 10px;
+            color: #fff;
+        }
+        .hero-icon.pending { background: linear-gradient(135deg, #FF9500, #FFD60A); }
+        .hero-icon.inTransit { background: linear-gradient(135deg, #007AFF, #5AC8FA); }
+        .hero-icon.outForDelivery { background: linear-gradient(135deg, #AF52DE, #007AFF); }
+        .hero-icon.delivered { background: linear-gradient(135deg, #34C759, #30D158); }
+        .hero-icon.returned { background: linear-gradient(135deg, #8E8E93, #C7C7CC); }
+        .hero-icon.exception { background: linear-gradient(135deg, #FF3B30, #FF9500); }
+        .status-hero h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+        .status-hero .sub { font-size: 13px; color: var(--secondary); }
+
+        .info-card {
+            margin: 12px 16px; padding: 14px 16px; background: var(--card-bg);
+            border-radius: 14px; box-shadow: var(--card-shadow);
+        }
+        .info-row {
+            display: flex; padding: 8px 0; font-size: 14px;
+        }
+        .info-row .label { color: var(--secondary); width: 72px; flex-shrink: 0; }
+        .info-row .value { font-weight: 500; word-break: break-all; }
+        .info-row + .info-row { border-top: 1px solid var(--separator); }
+
+        .timeline-title { font-size: 16px; font-weight: 600; padding: 8px 20px 0; }
+
+        .timeline {
+            margin: 8px 16px 30px; padding: 14px 16px; background: var(--card-bg);
+            border-radius: 14px; box-shadow: var(--card-shadow);
+        }
+        .tl-node { display: flex; gap: 12px; padding-bottom: 0; position: relative; }
+        .tl-line-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+        .tl-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: var(--secondary);
+            opacity: 0.4; flex-shrink: 0;
+        }
+        .tl-dot.first { background: var(--blue); opacity: 1; box-shadow: 0 0 0 4px rgba(0,122,255,0.2); }
+        .tl-line { width: 2px; flex: 1; background: var(--separator); min-height: 30px; }
+        .tl-content { flex: 1; padding-bottom: 20px; }
+        .tl-node:last-child .tl-content { padding-bottom: 0; }
+        .tl-context { font-size: 14px; line-height: 1.4; }
+        .tl-node:first-child .tl-context { font-weight: 600; }
+        .tl-meta { font-size: 12px; color: var(--secondary); margin-top: 4px; }
+
+        /* SMART PARSE RESULT */
+        .parse-result-card {
+            margin: 4px 16px; padding: 12px 14px; background: var(--card-bg);
+            border-radius: 12px; box-shadow: var(--card-shadow);
+            display: flex; align-items: center; gap: 10px;
+            border-left: 3px solid var(--blue);
+        }
+        .parse-result-card .pr-check {
+            width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--separator);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; transition: all 0.2s;
+        }
+        .parse-result-card .pr-check.checked {
+            background: var(--blue); border-color: var(--blue); color: #fff; font-size: 12px;
+        }
+        .parse-result-card .pr-info { flex: 1; font-size: 13px; }
+        .parse-result-card .pr-platform { font-size: 11px; color: var(--secondary); }
+
+        /* TOAST */
+        .toast {
+            position: fixed; top: 20px; left: 50%;
+            transform: translateX(-50%) translateY(-120px);
+            background: #1c1c1e; color: #fff; padding: 10px 20px;
+            border-radius: 20px; font-size: 14px; font-weight: 500;
+            z-index: 400; transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            pointer-events: none;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* SEARCH */
+        .search-bar {
+            margin: 0 16px 4px; display: flex; align-items: center;
+            background: var(--card-bg); border-radius: 10px; padding: 8px 12px; gap: 8px;
+        }
+        .search-bar input {
+            flex: 1; border: none; background: none; color: var(--text);
+            font-size: 15px; outline: none; font-family: inherit;
+        }
+
+        /* GUIDE SECTION */
+        .guide-step {
+            display: flex; gap: 12px; padding: 12px 0; align-items: flex-start;
+        }
+        .guide-num {
+            width: 28px; height: 28px; border-radius: 50%; background: var(--blue);
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700; flex-shrink: 0;
+        }
+        .guide-content { flex: 1; }
+        .guide-content h4 { font-size: 15px; margin-bottom: 4px; }
+        .guide-content p { font-size: 13px; color: var(--secondary); line-height: 1.5; }
+
+        /* EMAIL SETUP */
+        .email-setup-box {
+            margin: 8px 16px; padding: 14px; background: rgba(255,149,0,0.08);
+            border: 1px solid rgba(255,149,0,0.2); border-radius: 12px;
+        }
+        .email-setup-box h4 { font-size: 14px; margin-bottom: 6px; }
+        .email-setup-box ul { padding-left: 18px; font-size: 13px; color: var(--secondary); line-height: 1.8; }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-top">
+            <h1>📦 包裹追踪</h1>
+            <div class="header-actions">
+                <button class="btn-icon" id="btnSmartScan" title="智能识别">
+                    <span style="font-size:20px;">🔍</span>
+                </button>
+                <button class="btn-icon" id="btnRefresh" title="刷新全部">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+                <button class="btn-icon" id="btnAdd" title="手动添加" style="background: var(--blue); color: #fff;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLIPBOARD BANNER -->
+    <div class="clipboard-banner" id="clipboardBanner" style="display:none;">
+        <span class="cb-icon">📋</span>
+        <div class="cb-info">
+            <div class="cb-title" id="clipboardTitle">检测到快递单号</div>
+            <div class="cb-sub" id="clipboardSub"></div>
+        </div>
+        <button class="cb-btn" onclick="quickAddFromClipboard()">添加 →</button>
+    </div>
+
+    <!-- SMART SCAN BUTTON -->
+    <div class="smart-scan-btn" onclick="openSmartScan()">
+        <span class="ss-icon">📋</span>
+        <div class="ss-text">
+            <div class="ss-title">智能识别快递单号</div>
+            <div class="ss-sub">从订单页面复制文本，自动提取快递单号</div>
+        </div>
+        <span style="font-size:18px;color:var(--blue);">→</span>
+    </div>
+
+    <!-- SEARCH BAR -->
+    <div class="search-bar" id="searchBar" style="display:none;">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索运单号、快递公司...">
+        <button class="btn-icon" id="btnClearSearch" style="width:24px;height:24px;font-size:12px;">✕</button>
+    </div>
+
+    <!-- FILTER CHIPS -->
+    <div class="stats-bar" id="filterBar">
+        <button class="stat-chip active" data-filter="all">全部 <span class="count" id="countAll">0</span></button>
+        <button class="stat-chip" data-filter="inTransit">运输中 <span class="count" id="countTransit">0</span></button>
+        <button class="stat-chip" data-filter="outForDelivery">派送中 <span class="count" id="countDelivery">0</span></button>
+        <button class="stat-chip" data-filter="delivered">已签收 <span class="count" id="countDone">0</span></button>
+        <button class="stat-chip" data-filter="archived">归档 <span class="count" id="countArchived">0</span></button>
+    </div>
+
+    <!-- PACKAGE LIST -->
+    <div class="package-list" id="packageList"></div>
+    <div class="empty-state" id="emptyState">
+        <div class="icon">📭</div>
+        <h3>暂无包裹</h3>
+        <p>试试上面的<b>智能识别</b>功能<br>复制订单信息即可自动提取快递单号</p>
+        <button class="btn-add" onclick="openAddModal()">+ 手动添加包裹</button>
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottom-nav">
+        <button class="nav-item active" data-tab="packages">
+            <span class="nav-icon">📦</span> 包裹
+        </button>
+        <button class="nav-item" data-tab="guide">
+            <span class="nav-icon">📖</span> 自动获取指南
+        </button>
+        <button class="nav-item" data-tab="settings">
+            <span class="nav-icon">⚙️</span> 设置
+        </button>
+    </div>
+
+    <!-- ========== ADD MODAL ========== -->
+    <div class="modal-overlay" id="addModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>添加包裹</h2>
+                <button class="btn-close" onclick="closeAddModal()">✕</button>
+            </div>
+            <div class="form-group">
+                <label>运单号</label>
+                <input type="text" id="trackingInput" placeholder="请输入快递单号" autocomplete="off">
+                <div class="detected-carrier" id="detectedCarrier" style="display:none;"></div>
+            </div>
+            <label style="padding: 4px 16px; font-size:12px; font-weight:600; color:var(--secondary); letter-spacing:0.5px;">来源平台</label>
+            <div class="platform-grid" id="platformGrid"></div>
+            <div class="form-group">
+                <label>包裹描述（选填）</label>
+                <input type="text" id="descInput" placeholder="例如：手机壳、衣服...">
+            </div>
+            <div class="form-group">
+                <label>备注（选填）</label>
+                <textarea id="notesInput" placeholder="添加备注..."></textarea>
+            </div>
+            <button class="btn-submit" id="btnSubmit" disabled onclick="addPackage()">添加包裹</button>
+        </div>
+    </div>
+
+    <!-- ========== SMART SCAN MODAL ========== -->
+    <div class="modal-overlay" id="smartScanModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>🔍 智能识别快递单号</h2>
+                <button class="btn-close" onclick="closeSmartScan()">✕</button>
+            </div>
+            <div class="form-group">
+                <label>📋 粘贴订单信息</label>
+                <textarea id="smartScanInput" placeholder="从 拼多多/淘宝/京东/抖音 的订单页面复制订单信息，粘贴到这里...
+
+例如：
+订单号：1234567890123456
+物流公司：中通快递
+快递单号：751234567891
+...或者直接粘贴包含快递单号的任意文本" style="min-height:140px;"></textarea>
+            </div>
+            <div id="scanResults" style="padding:0 16px;"></div>
+            <button class="btn-submit" id="btnBatchAdd" disabled onclick="batchAddPackages()">
+                批量添加选中包裹
+            </button>
+            <div style="padding: 8px 20px 20px; font-size:12px; color:var(--secondary); line-height:1.6;">
+                <strong>💡 提示：</strong>在电商 App 的订单详情页，全选复制订单信息文本，粘贴到上方即可自动识别。
+                支持识别：顺丰/中通/圆通/韵达/申通/京东/极兔/EMS 等17家快递公司。
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== DETAIL OVERLAY ========== -->
+    <div class="detail-overlay" id="detailOverlay">
+        <div class="detail-header">
+            <button class="btn-back" onclick="closeDetail()">←</button>
+            <h3>包裹详情</h3>
+            <button class="btn-icon" id="btnDetailRefresh">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <button class="btn-icon" id="btnDetailMenu" style="font-size:14px;">⋯</button>
+        </div>
+        <div id="detailContent"></div>
+    </div>
+
+    <!-- ========== SETTINGS OVERLAY ========== -->
+    <div class="detail-overlay" id="settingsOverlay">
+        <div class="detail-header">
+            <button class="btn-back" onclick="closeSettings()">←</button>
+            <h3>设置</h3>
+        </div>
+        <div id="settingsContent"></div>
+    </div>
+
+    <!-- ========== GUIDE OVERLAY (自动获取指南) ========== -->
+    <div class="detail-overlay" id="guideOverlay">
+        <div class="detail-header">
+            <button class="btn-back" onclick="closeGuide()">←</button>
+            <h3>📖 自动获取快递单号指南</h3>
+        </div>
+        <div id="guideContent"></div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // ============================
+    //  DATA
+    // ============================
+
+    const PLATFORMS = [
+        { id: 'pinduoduo', name: '拼多多', icon: '🛍️', patterns: [/拼多多/, /pdd/i, /多多买菜/, /拼团/] },
+        { id: 'taobao', name: '淘宝', icon: '🛒', patterns: [/淘宝/, /taobao/i, /淘特/] },
+        { id: 'tmall', name: '天猫', icon: '🐱', patterns: [/天猫/, /tmall/i, /猫超/] },
+        { id: 'jd', name: '京东', icon: '🐶', patterns: [/京东/, /jd\.com/i, /京东物流/] },
+        { id: 'douyin', name: '抖音', icon: '🎵', patterns: [/抖音/, /douyin/i, /抖音电商/] },
+        { id: 'kuaishou', name: '快手', icon: '▶️', patterns: [/快手/, /kuaishou/i] },
+        { id: 'xiaohongshu', name: '小红书', icon: '📕', patterns: [/小红书/, /xiaohongshu/i, /RED/] },
+        { id: 'other', name: '其他', icon: '📦', patterns: [] },
+    ];
+
+    const CARRIERS = [
+        { name: '顺丰速运', code: 'shunfeng', patterns: [/SF\d{10,}/i, /顺丰/] },
+        { name: '中通快递', code: 'zhongtong', patterns: [/中通/, /7\d{11,13}/, /ZT/i] },
+        { name: '圆通速递', code: 'yuantong', patterns: [/圆通/, /YT\d{10,}/i] },
+        { name: '韵达快递', code: 'yunda', patterns: [/韵达/, /YD\d{10,}/i, /\d{13}/] },
+        { name: '申通快递', code: 'shentong', patterns: [/申通/, /STO\d{10,}/i, /77\d{10,}/] },
+        { name: '百世快递', code: 'baishihuitong', patterns: [/百世/, /BEST\d{10,}/i, /huitong/i] },
+        { name: '极兔速递', code: 'jtexpress', patterns: [/极兔/, /JT\d{10,}/i, /J&T/] },
+        { name: '京东物流', code: 'jd', patterns: [/JDV?\d{10,}/i, /JDX\d{10,}/i] },
+        { name: 'EMS', code: 'ems', patterns: [/EMS\d{10,}/i, /邮政速递/] },
+        { name: '邮政包裹', code: 'youzhengguonei', patterns: [/邮政/, /PA\d{10,}/i, /^\d{18}$/] },
+        { name: '德邦快递', code: 'debangwuliu', patterns: [/德邦/, /DB\d{10,}/i, /DPL\d{10,}/i] },
+        { name: '菜鸟裹裹', code: 'cainiao', patterns: [/菜鸟/, /CN\d{10,}/i, /裹裹/] },
+        { name: '丹鸟物流', code: 'danniao', patterns: [/丹鸟/, /DN\d{10,}/i] },
+        { name: '宅急送', code: 'zhaijisong', patterns: [/宅急送/, /ZJS\d{10,}/i] },
+        { name: '优速快递', code: 'youshuwuliu', patterns: [/优速/, /YS\d{10,}/i] },
+        { name: '跨越速运', code: 'kuayue', patterns: [/跨越/, /KYE\d{10,}/i] },
+        { name: '天天快递', code: 'tiantian', patterns: [/天天快递/, /TT\d{10,}/i] },
+    ];
+
+    // Global tracking number regex (catches most formats)
+    const UNIVERSAL_TRACKING_REGEX = /([A-Z]{2,4}\d{8,20}|\d{10,20}|[A-Z]\d{10,18}|77\d{10,14}|7\d{11,13})/gi;
+
+    let packages = [];
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let selectedPlatform = 'other';
+    let currentDetailId = null;
+    let parsedResults = []; // Smart scan results
+    let clipboardTrackingNumbers = [];
+
+    // ============================
+    //  PERSISTENCE
+    // ============================
+
+    function loadData() {
+        try {
+            const raw = localStorage.getItem('packages');
+            packages = raw ? JSON.parse(raw) : [];
+        } catch(e) { packages = []; }
+    }
+
+    function saveData() {
+        localStorage.setItem('packages', JSON.stringify(packages));
+    }
+
+    // ============================
+    //  CARRIER & PLATFORM DETECTION
+    // ============================
+
+    function detectCarrier(trackingNumber) {
+        const cleaned = trackingNumber.trim().toUpperCase();
+        for (const carrier of CARRIERS) {
+            for (const pattern of carrier.patterns) {
+                if (pattern.test(cleaned)) {
+                    return { name: carrier.name, code: carrier.code };
+                }
+            }
+        }
+        if (cleaned.length >= 10 && /^\d+$/.test(cleaned)) {
+            return { name: '其他快递', code: 'auto' };
+        }
+        return null;
+    }
+
+    function detectPlatform(text) {
+        for (const platform of PLATFORMS) {
+            if (platform.id === 'other') continue;
+            for (const pattern of platform.patterns) {
+                if (pattern.test(text)) {
+                    return platform.id;
+                }
+            }
+        }
+        return 'other';
+    }
+
+    /**
+     * Smart text parser: extracts tracking numbers from any text
+     * Handles formats from 拼多多/淘宝/京东/抖音 order pages
+     */
+    function parseTrackingFromText(text) {
+        const results = [];
+        const seen = new Set();
+
+        // Strategy 1: Look for "快递单号" / "运单号" / "物流单号" patterns
+        const labelPatterns = [
+            /(?:快递|运单|物流|包裹|配送)(?:单)?号[：:\s]*([A-Za-z0-9]{8,30})/g,
+            /(?:tracking|track|waybill)(?:\s*number|no)?[：:\s]*([A-Za-z0-9]{8,30})/gi,
+        ];
+
+        for (const pattern of labelPatterns) {
+            let match;
+            const regex = new RegExp(pattern.source, pattern.flags);
+            while ((match = regex.exec(text)) !== null) {
+                const num = match[1].trim().toUpperCase();
+                if (num.length >= 8 && num.length <= 30 && !seen.has(num) && /\d/.test(num)) {
+                    seen.add(num);
+                    const carrier = detectCarrier(num);
+                    results.push({
+                        trackingNumber: num,
+                        carrierName: carrier?.name || '未知快递',
+                        carrierCode: carrier?.code || 'auto',
+                    });
+                }
+            }
+        }
+
+        // Strategy 2: Universal tracking number pattern matching
+        // Look for standalone tracking numbers in the text
+        const cleaned = text.replace(/\s+/g, ' ');
+        const matches = cleaned.matchAll(UNIVERSAL_TRACKING_REGEX);
+        for (const match of matches) {
+            const num = match[0].trim().toUpperCase();
+            // Filter out things that look like order numbers (too short/long, or phone numbers)
+            if (num.length >= 10 && num.length <= 25 && !seen.has(num) && /\d/.test(num)) {
+                // Skip if it looks like a phone number (11 digits starting with 1 in China)
+                if (/^1[3-9]\d{9}$/.test(num)) continue;
+                // Skip if it looks like a date
+                if (/^20\d{2}[01]\d[0-3]\d/.test(num)) continue;
+
+                seen.add(num);
+                const carrier = detectCarrier(num);
+                results.push({
+                    trackingNumber: num,
+                    carrierName: carrier?.name || '未知快递',
+                    carrierCode: carrier?.code || 'auto',
+                });
+            }
+        }
+
+        // Deduplicate by tracking number
+        const unique = [];
+        const seenNums = new Set();
+        for (const r of results) {
+            if (!seenNums.has(r.trackingNumber)) {
+                seenNums.add(r.trackingNumber);
+                unique.push(r);
+            }
+        }
+
+        // Detect platform from text
+        const platform = detectPlatform(text);
+        for (const r of unique) {
+            r.platform = platform;
+        }
+
+        return unique;
+    }
+
+    // ============================
+    //  CLIPBOARD AUTO-DETECT
+    // ============================
+
+    async function checkClipboard() {
+        // Only work in secure context (HTTPS or localhost)
+        if (!navigator.clipboard || !navigator.clipboard.readText) return;
+
+        try {
+            // Check if we have permission
+            const text = await navigator.clipboard.readText();
+            if (!text || text.length < 8 || text.length > 5000) return;
+
+            // Don't re-detect the same text
+            const lastChecked = sessionStorage.getItem('last_clipboard_text');
+            if (lastChecked === text) return;
+
+            sessionStorage.setItem('last_clipboard_text', text);
+
+            const results = parseTrackingFromText(text);
+            if (results.length === 0) return;
+
+            // Filter out already-existing packages
+            const existingNums = new Set(packages.map(p => p.trackingNumber));
+            const newResults = results.filter(r => !existingNums.has(r.trackingNumber));
+
+            if (newResults.length === 0) return;
+
+            clipboardTrackingNumbers = newResults;
+
+            const banner = document.getElementById('clipboardBanner');
+            if (newResults.length === 1) {
+                document.getElementById('clipboardTitle').textContent = '📋 检测到快递单号';
+                document.getElementById('clipboardSub').textContent = newResults[0].trackingNumber + ' (' + newResults[0].carrierName + ')';
+            } else {
+                document.getElementById('clipboardTitle').textContent = `📋 检测到 ${newResults.length} 个快递单号`;
+                document.getElementById('clipboardSub').textContent = newResults.map(r => r.trackingNumber).join(', ');
+            }
+            banner.style.display = 'flex';
+        } catch(e) {
+            // Clipboard access denied or unavailable
+        }
+    }
+
+    async function quickAddFromClipboard() {
+        if (clipboardTrackingNumbers.length === 0) return;
+
+        const platform = detectPlatform(sessionStorage.getItem('last_clipboard_text') || '');
+        let added = 0;
+
+        for (const result of clipboardTrackingNumbers) {
+            if (packages.some(p => p.trackingNumber === result.trackingNumber && !p.isArchived)) continue;
+
+            const carrier = detectCarrier(result.trackingNumber);
+            const pkg = await queryRealAPI(result.trackingNumber, carrier?.code);
+            pkg.description = `包裹 ${result.trackingNumber.slice(-6)}`;
+            pkg.platform = result.platform || platform;
+
+            packages.unshift(pkg);
+            added++;
+        }
+
+        if (added > 0) {
+            saveData();
+            renderList();
+            showToast(`✅ 已添加 ${added} 个包裹`);
+        }
+
+        document.getElementById('clipboardBanner').style.display = 'none';
+        clipboardTrackingNumbers = [];
+    }
+
+    // ============================
+    //  SMART SCAN
+    // ============================
+
+    function openSmartScan() {
+        document.getElementById('smartScanModal').classList.add('show');
+        document.getElementById('smartScanInput').value = '';
+        document.getElementById('scanResults').innerHTML = '';
+        document.getElementById('btnBatchAdd').disabled = true;
+        parsedResults = [];
+
+        // Pre-fill with clipboard if available
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            navigator.clipboard.readText().then(text => {
+                if (text && text.length > 8 && text.length < 5000) {
+                    document.getElementById('smartScanInput').value = text;
+                    triggerSmartParse(text);
+                }
+            }).catch(() => {});
+        }
+    }
+
+    function closeSmartScan() {
+        document.getElementById('smartScanModal').classList.remove('show');
+    }
+
+    function triggerSmartParse(text) {
+        if (!text || text.length < 8) {
+            document.getElementById('scanResults').innerHTML = '';
+            document.getElementById('btnBatchAdd').disabled = true;
+            return;
+        }
+
+        parsedResults = parseTrackingFromText(text);
+
+        const container = document.getElementById('scanResults');
+        if (parsedResults.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center;padding:16px;color:var(--secondary);">
+                    <p>😕 未能识别到快递单号</p>
+                    <p style="font-size:12px;margin-top:4px;">请确保文本中包含快递单号（通常为10-20位数字或字母+数字组合）</p>
+                </div>`;
+            document.getElementById('btnBatchAdd').disabled = true;
+            return;
+        }
+
+        // Filter already existing
+        const existingNums = new Set(packages.map(p => p.trackingNumber));
+        for (const r of parsedResults) {
+            r.isNew = !existingNums.has(r.trackingNumber);
+            r.checked = r.isNew;
+        }
+
+        container.innerHTML = `
+            <div style="margin-bottom:8px;font-size:13px;color:var(--secondary);">
+                识别到 <strong>${parsedResults.length}</strong> 个快递单号
+                （<span style="color:var(--green);">${parsedResults.filter(r => r.isNew).length}</span> 个新包裹）
+            </div>
+            ${parsedResults.map((r, i) => `
+                <div class="parse-result-card" style="${!r.isNew ? 'opacity:0.4;' : ''}">
+                    <div class="pr-check ${r.checked ? 'checked' : ''}"
+                         onclick="toggleParseResult(${i})"
+                         style="${!r.isNew ? 'pointer-events:none;' : ''}">
+                        ${r.checked ? '✓' : ''}
+                    </div>
+                    <div class="pr-info">
+                        <strong>${escapeHtml(r.trackingNumber)}</strong>
+                        <span style="font-size:11px;color:var(--secondary);">${r.carrierName}</span>
+                        ${!r.isNew ? '<span style="font-size:10px;color:var(--orange);margin-left:4px;">已存在</span>' : ''}
+                    </div>
+                    <div class="pr-platform">${getPlatformIcon(r.platform)} ${getPlatformName(r.platform)}</div>
+                </div>
+            `).join('')}
+        `;
+
+        updateBatchAddButton();
+    }
+
+    function toggleParseResult(index) {
+        if (!parsedResults[index].isNew) return;
+        parsedResults[index].checked = !parsedResults[index].checked;
+        // Update UI
+        const cards = document.querySelectorAll('.parse-result-card');
+        if (cards[index]) {
+            const check = cards[index].querySelector('.pr-check');
+            check.classList.toggle('checked');
+            check.textContent = parsedResults[index].checked ? '✓' : '';
+        }
+        updateBatchAddButton();
+    }
+
+    function updateBatchAddButton() {
+        const count = parsedResults.filter(r => r.checked && r.isNew).length;
+        const btn = document.getElementById('btnBatchAdd');
+        btn.disabled = count === 0;
+        btn.textContent = count > 0 ? `批量添加 ${count} 个包裹` : '批量添加选中包裹';
+    }
+
+    async function batchAddPackages() {
+        const toAdd = parsedResults.filter(r => r.checked && r.isNew);
+        if (toAdd.length === 0) return;
+
+        const btn = document.getElementById('btnBatchAdd');
+        btn.disabled = true;
+        btn.textContent = '添加中...';
+
+        let added = 0;
+        for (const result of toAdd) {
+            try {
+                const carrier = detectCarrier(result.trackingNumber);
+                const pkg = await queryRealAPI(result.trackingNumber, carrier?.code || result.carrierCode);
+                pkg.description = `包裹 ${result.trackingNumber.slice(-6)}`;
+                pkg.platform = result.platform || 'other';
+                packages.unshift(pkg);
+                added++;
+            } catch(e) {
+                console.warn('Failed to add:', result.trackingNumber, e);
+            }
+        }
+
+        saveData();
+        renderList();
+        closeSmartScan();
+        showToast(`✅ 已添加 ${added} 个包裹`);
+    }
+
+    // ============================
+    //  MOCK TRACKING
+    // ============================
+
+    function generateMockTracking(trackingNumber, carrier) {
+        const now = new Date();
+        const nodes = [];
+        const locations = ['上海转运中心', '杭州分拨中心', '北京集散中心', '广州分拣中心', '深圳配送站', '成都中转站', '武汉分拣中心', '南京物流园'];
+        const contexts = [
+            '包裹已揽收',
+            `快件到达${randomPick(locations)}`,
+            `快件已从${randomPick(locations)}发出`,
+            `快件到达${randomPick(locations)}`,
+            '快递员正在派送中，请保持电话畅通',
+            `快件已在${randomPick(locations)}扫描`,
+            '快件已签收，签收人：本人'
+        ];
+
+        const steps = 5 + Math.floor(Math.random() * 6);
+        for (let i = 0; i < steps; i++) {
+            const hoursAgo = (steps - i) * (4 + Math.floor(Math.random() * 20));
+            const time = new Date(now - hoursAgo * 3600000);
+            nodes.push({
+                time: time.toISOString(),
+                context: contexts[Math.min(i, contexts.length - 1)],
+                location: randomPick(locations),
+                status: i === steps - 1 ? '揽收' : i === 0 ? (Math.random() > 0.5 ? '签收' : '派件') : '在途'
+            });
+        }
+
+        nodes.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        const latest = nodes[0];
+        let status = 'inTransit';
+        if (latest.context.includes('签收')) status = 'delivered';
+        else if (latest.context.includes('派送')) status = 'outForDelivery';
+        else if (latest.context.includes('退回')) status = 'returned';
+        else if (nodes.length <= 2 && latest.context.includes('揽收')) status = 'pending';
+
+        const estDelivery = new Date(now + (1 + Math.floor(Math.random() * 5)) * 86400000);
+
+        return {
+            id: generateId(),
+            trackingNumber,
+            carrierName: carrier ? carrier.name : '未知快递',
+            carrierCode: carrier ? carrier.code : 'auto',
+            platform: selectedPlatform,
+            description: '',
+            status,
+            estimatedDelivery: estDelivery.toISOString(),
+            lastUpdate: nodes[0]?.time || now.toISOString(),
+            trackingNodes: nodes,
+            isArchived: false,
+            notes: '',
+            createdAt: now.toISOString()
+        };
+    }
+
+    function randomPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function generateId() { return 'pkg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9); }
+
+    // ============================
+    //  API (Real + Mock fallback)
+    // ============================
+
+    async function queryRealAPI(trackingNumber, carrierCode) {
+        const apiKey = localStorage.getItem('kuaidi100_key') || '';
+        const customerId = localStorage.getItem('kuaidi100_customer') || '';
+
+        if (!apiKey || !customerId) {
+            const carrier = detectCarrier(trackingNumber);
+            return generateMockTracking(trackingNumber, carrier);
+        }
+
+        try {
+            const param = JSON.stringify({ com: carrierCode || 'auto', num: trackingNumber });
+            const sign = await simpleHash(param + apiKey + customerId);
+            const url = `https://poll.kuaidi100.com/poll/query.do?customer=${customerId}&sign=${sign}&param=${encodeURIComponent(param)}`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status === '200' && data.data) {
+                return parseAPIResponse(data, trackingNumber);
+            }
+        } catch(e) {
+            console.warn('API failed, using mock:', e.message);
+        }
+
+        const carrier = detectCarrier(trackingNumber);
+        return generateMockTracking(trackingNumber, carrier);
+    }
+
+    function parseAPIResponse(data, trackingNumber) {
+        const nodes = (data.data || []).map(trace => ({
+            time: trace.time || trace.ftime || new Date().toISOString(),
+            context: trace.context || '',
+            location: trace.location || trace.areaName || '',
+            status: trace.status || ''
+        }));
+        nodes.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+        const stateMap = { '0':'inTransit','1':'pending','2':'exception','3':'delivered','4':'returned','5':'outForDelivery','6':'returned' };
+        const status = stateMap[data.state] || 'inTransit';
+        const carrier = detectCarrier(trackingNumber);
+
+        return {
+            id: generateId(),
+            trackingNumber: data.nu || trackingNumber,
+            carrierName: carrier?.name || data.com || '未知快递',
+            carrierCode: data.com || carrier?.code || 'auto',
+            platform: selectedPlatform,
+            description: '',
+            status,
+            estimatedDelivery: null,
+            lastUpdate: nodes[0]?.time || new Date().toISOString(),
+            trackingNodes: nodes,
+            isArchived: false,
+            notes: '',
+            createdAt: new Date().toISOString()
+        };
+    }
+
+    async function simpleHash(str) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(str);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+    }
+
+    // ============================
+    //  RENDER LIST
+    // ============================
+
+    function getFilteredPackages() {
+        let result = [...packages];
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(p =>
+                p.trackingNumber.toLowerCase().includes(q) ||
+                p.carrierName.toLowerCase().includes(q) ||
+                (p.description || '').toLowerCase().includes(q)
+            );
+        }
+        switch (currentFilter) {
+            case 'all': result = result.filter(p => !p.isArchived); break;
+            case 'inTransit': result = result.filter(p => (p.status === 'inTransit' || p.status === 'pending') && !p.isArchived); break;
+            case 'outForDelivery': result = result.filter(p => p.status === 'outForDelivery' && !p.isArchived); break;
+            case 'delivered': result = result.filter(p => p.status === 'delivered' && !p.isArchived); break;
+            case 'archived': result = result.filter(p => p.isArchived); break;
+        }
+        const order = { pending: 0, outForDelivery: 1, inTransit: 2, delivered: 3, returned: 4, exception: 5 };
+        result.sort((a, b) => {
+            const sa = order[a.status] ?? 5, sb = order[b.status] ?? 5;
+            if (sa !== sb) return sa - sb;
+            return new Date(b.lastUpdate) - new Date(a.lastUpdate);
+        });
+        return result;
+    }
+
+    function updateCounts() {
+        document.getElementById('countAll').textContent = packages.filter(p => !p.isArchived).length;
+        document.getElementById('countTransit').textContent = packages.filter(p => (p.status === 'inTransit' || p.status === 'pending') && !p.isArchived).length;
+        document.getElementById('countDelivery').textContent = packages.filter(p => p.status === 'outForDelivery' && !p.isArchived).length;
+        document.getElementById('countDone').textContent = packages.filter(p => p.status === 'delivered' && !p.isArchived).length;
+        document.getElementById('countArchived').textContent = packages.filter(p => p.isArchived).length;
+    }
+
+    function renderList() {
+        const listEl = document.getElementById('packageList');
+        const emptyEl = document.getElementById('emptyState');
+        const filtered = getFilteredPackages();
+
+        if (filtered.length === 0) {
+            listEl.innerHTML = '';
+            emptyEl.style.display = 'block';
+        } else {
+            emptyEl.style.display = 'none';
+            listEl.innerHTML = filtered.map(p => `
+                <div class="package-card-wrapper" data-id="${p.id}">
+                    <div class="package-card ${p.isArchived ? 'archived' : ''}" onclick="openDetail('${p.id}')">
+                        <div class="platform-icon platform-${p.platform}">${getPlatformIcon(p.platform)}</div>
+                        <div class="card-info">
+                            <div class="carrier">
+                                ${escapeHtml(p.carrierName)}
+                                <span class="status-badge status-${p.status}">${statusLabel(p.status)}</span>
+                            </div>
+                            <div class="desc">${escapeHtml(p.description || getPlatformName(p.platform))}</div>
+                            <div class="latest">${escapeHtml(getLatestContext(p))}</div>
+                        </div>
+                        <div class="card-meta">
+                            <div class="time">${formatRelativeTime(p.lastUpdate)}</div>
+                            <div class="number">${p.trackingNumber.slice(-6)}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        updateCounts();
+    }
+
+    function getPlatformIcon(id) { return (PLATFORMS.find(x => x.id === id) || PLATFORMS[7]).icon; }
+    function getPlatformName(id) { return (PLATFORMS.find(x => x.id === id) || PLATFORMS[7]).name; }
+    function getLatestContext(p) { return (p.trackingNodes && p.trackingNodes.length > 0) ? (p.trackingNodes[0].context || '暂无物流信息') : '暂无物流信息'; }
+    function statusLabel(s) { return { pending:'待揽件', inTransit:'运输中', outForDelivery:'派送中', delivered:'已签收', returned:'已退回', exception:'异常' }[s] || s; }
+    function formatRelativeTime(d) {
+        if (!d) return '';
+        const diff = new Date() - new Date(d);
+        const mins = Math.floor(diff/60000), hrs = Math.floor(diff/3600000), days = Math.floor(diff/86400000);
+        if (mins < 1) return '刚刚';
+        if (mins < 60) return `${mins}分钟前`;
+        if (hrs < 24) return `${hrs}小时前`;
+        if (days < 7) return `${days}天前`;
+        return new Date(d).toLocaleDateString('zh-CN', { month:'short', day:'numeric' });
+    }
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+    // ============================
+    //  ACTIONS
+    // ============================
+
+    async function addPackage() {
+        const trackingNumber = document.getElementById('trackingInput').value.trim();
+        if (!trackingNumber) return;
+        if (packages.some(p => p.trackingNumber === trackingNumber && !p.isArchived)) {
+            showToast('⚠️ 该运单号已存在'); return;
+        }
+        const desc = document.getElementById('descInput').value.trim();
+        const notes = document.getElementById('notesInput').value.trim();
+        const btn = document.getElementById('btnSubmit');
+        btn.disabled = true; btn.textContent = '查询中...';
+
+        let platform = selectedPlatform;
+        if (platform === 'other') {
+            const combined = (desc + notes).toLowerCase();
+            for (const p of PLATFORMS) {
+                if (p.id === 'other') continue;
+                if (p.patterns.some(pat => pat.test(combined))) { platform = p.id; break; }
+            }
+        }
+
+        try {
+            const carrier = detectCarrier(trackingNumber);
+            const pkg = await queryRealAPI(trackingNumber, carrier?.code);
+            pkg.description = desc || `包裹 ${trackingNumber.slice(-6)}`;
+            pkg.notes = notes || '';
+            pkg.platform = platform;
+            packages.unshift(pkg);
+            saveData(); renderList();
+            closeAddModal();
+            showToast('✅ 包裹已添加');
+        } catch(e) { showToast('❌ 添加失败: ' + e.message); }
+        btn.disabled = false; btn.textContent = '添加包裹';
+    }
+
+    async function refreshPackage(pkgId) {
+        const pkg = packages.find(p => p.id === pkgId);
+        if (!pkg) return;
+        try {
+            const updated = await queryRealAPI(pkg.trackingNumber, pkg.carrierCode);
+            Object.assign(pkg, {
+                carrierName: updated.carrierName, carrierCode: updated.carrierCode,
+                status: updated.status, trackingNodes: updated.trackingNodes,
+                lastUpdate: updated.lastUpdate, estimatedDelivery: updated.estimatedDelivery
+            });
+            saveData(); renderList();
+            if (currentDetailId === pkgId) renderDetail(pkg);
+        } catch(e) { showToast('❌ 刷新失败'); }
+    }
+
+    async function refreshAll() {
+        const active = packages.filter(p => p.status !== 'delivered' && !p.isArchived);
+        if (active.length === 0) { showToast('没有需要刷新的包裹'); return; }
+        const btn = document.getElementById('btnRefresh');
+        btn.classList.add('spinning');
+        for (const pkg of active) await refreshPackage(pkg.id);
+        btn.classList.remove('spinning');
+        showToast(`✅ 已刷新 ${active.length} 个包裹`);
+    }
+
+    function deletePackage(pkgId) {
+        if (!confirm('确定要删除这个包裹吗？')) return;
+        packages = packages.filter(p => p.id !== pkgId);
+        saveData(); renderList();
+        if (currentDetailId === pkgId) closeDetail();
+        showToast('🗑️ 已删除');
+    }
+
+    function toggleArchive(pkgId) {
+        const pkg = packages.find(p => p.id === pkgId);
+        if (!pkg) return;
+        pkg.isArchived = !pkg.isArchived;
+        saveData(); renderList();
+        showToast(pkg.isArchived ? '📁 已归档' : '📂 已取消归档');
+    }
+
+    // ============================
+    //  MODALS & DETAIL
+    // ============================
+
+    function openAddModal() {
+        document.getElementById('addModal').classList.add('show');
+        document.getElementById('trackingInput').value = '';
+        document.getElementById('descInput').value = '';
+        document.getElementById('notesInput').value = '';
+        document.getElementById('detectedCarrier').style.display = 'none';
+        document.getElementById('btnSubmit').disabled = true;
+        selectedPlatform = 'other';
+        renderPlatformGrid();
+        setTimeout(() => document.getElementById('trackingInput').focus(), 350);
+    }
+
+    function closeAddModal() { document.getElementById('addModal').classList.remove('show'); }
+
+    function openDetail(pkgId) {
+        const pkg = packages.find(p => p.id === pkgId);
+        if (!pkg) return;
+        currentDetailId = pkgId;
+        renderDetail(pkg);
+        document.getElementById('detailOverlay').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetail() {
+        document.getElementById('detailOverlay').classList.remove('show');
+        document.body.style.overflow = '';
+        currentDetailId = null;
+    }
+
+    function renderDetail(pkg) {
+        const container = document.getElementById('detailContent');
+        const nodes = pkg.trackingNodes || [];
+        const heroEmoji = { pending:'⏳', inTransit:'🚚', outForDelivery:'🏃', delivered:'✅', returned:'↩️', exception:'⚠️' }[pkg.status] || '📦';
+        const estDelivery = pkg.estimatedDelivery ? `<div class="sub">预计 ${new Date(pkg.estimatedDelivery).toLocaleDateString('zh-CN')} 送达</div>` : '';
+        const daysInTransit = nodes.length > 0 ? Math.ceil((new Date() - new Date(nodes[nodes.length-1].time))/86400000) : 0;
+
+        container.innerHTML = `
+            <div class="status-hero">
+                <div class="hero-icon ${pkg.status}">${heroEmoji}</div>
+                <h2>${statusLabel(pkg.status)}</h2>
+                ${estDelivery}
+                ${daysInTransit > 0 ? `<div class="sub">已运输 ${daysInTransit} 天</div>` : ''}
+            </div>
+            <div class="info-card">
+                <div class="info-row"><span class="label">运单号</span><span class="value">${escapeHtml(pkg.trackingNumber)}</span></div>
+                <div class="info-row"><span class="label">快递公司</span><span class="value">${escapeHtml(pkg.carrierName)}</span></div>
+                <div class="info-row"><span class="label">来源平台</span><span class="value">${getPlatformIcon(pkg.platform)} ${getPlatformName(pkg.platform)}</span></div>
+                ${pkg.description ? `<div class="info-row"><span class="label">描述</span><span class="value">${escapeHtml(pkg.description)}</span></div>` : ''}
+                ${pkg.notes ? `<div class="info-row"><span class="label">备注</span><span class="value">${escapeHtml(pkg.notes)}</span></div>` : ''}
+                <div class="info-row"><span class="label">最后更新</span><span class="value">${new Date(pkg.lastUpdate).toLocaleString('zh-CN')}</span></div>
+            </div>
+            ${nodes.length > 0 ? `
+                <div class="timeline-title">📋 物流轨迹</div>
+                <div class="timeline">
+                    ${nodes.map((node, i) => `
+                        <div class="tl-node">
+                            <div class="tl-line-col">
+                                <div class="tl-dot ${i === 0 ? 'first' : ''}"></div>
+                                ${i < nodes.length - 1 ? '<div class="tl-line"></div>' : ''}
+                            </div>
+                            <div class="tl-content">
+                                <div class="tl-context">${escapeHtml(node.context)}</div>
+                                <div class="tl-meta">
+                                    ${new Date(node.time).toLocaleString('zh-CN', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+                                    ${node.location ? ' · ' + escapeHtml(node.location) : ''}
+                                    ${node.status ? ' · ' + escapeHtml(node.status) : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : `<div style="text-align:center;padding:40px;color:var(--secondary);"><div style="font-size:40px;margin-bottom:8px;">📭</div><p>暂无物流信息</p></div>`}
+            <div style="display:flex;gap:8px;padding:0 16px 30px;">
+                <button onclick="toggleArchive('${pkg.id}')" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--orange);color:#fff;font-size:14px;font-weight:600;cursor:pointer;">${pkg.isArchived ? '📂 取消归档' : '📁 归档'}</button>
+                <button onclick="deletePackage('${pkg.id}')" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--red);color:#fff;font-size:14px;font-weight:600;cursor:pointer;">🗑️ 删除</button>
+            </div>
+        `;
+
+        document.getElementById('btnDetailRefresh').onclick = () => refreshPackage(pkg.id);
+        document.getElementById('btnDetailMenu').onclick = () => {
+            const actions = [
+                { label: '复制运单号', action: () => { navigator.clipboard.writeText(pkg.trackingNumber); showToast('📋 已复制'); } },
+                { label: pkg.isArchived ? '取消归档' : '归档', action: () => toggleArchive(pkg.id) },
+                { label: '删除包裹', action: () => deletePackage(pkg.id) },
+            ];
+            const choice = prompt('选择操作:\n\n' + actions.map((a,i) => `${i+1}. ${a.label}`).join('\n') + '\n\n输入数字:');
+            if (choice && actions[parseInt(choice)-1]) actions[parseInt(choice)-1].action();
+        };
+    }
+
+    function renderPlatformGrid() {
+        document.getElementById('platformGrid').innerHTML = PLATFORMS.map(p => `
+            <button class="platform-btn ${selectedPlatform === p.id ? 'selected' : ''}" onclick="selectPlatform('${p.id}')">
+                <span class="pf-icon">${p.icon}</span>${p.name}
+            </button>
+        `).join('');
+    }
+
+    function selectPlatform(id) { selectedPlatform = id; renderPlatformGrid(); }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        clearTimeout(toast._to);
+        toast._to = setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // ============================
+    //  SETTINGS
+    // ============================
+
+    function openSettings() {
+        const container = document.getElementById('settingsContent');
+        const apiKey = localStorage.getItem('kuaidi100_key') || '';
+        const customerId = localStorage.getItem('kuaidi100_customer') || '';
+        const stats = {
+            all: packages.length,
+            transit: packages.filter(p => p.status === 'inTransit' || p.status === 'pending').length,
+            delivery: packages.filter(p => p.status === 'outForDelivery').length,
+            done: packages.filter(p => p.status === 'delivered' && !p.isArchived).length,
+            archived: packages.filter(p => p.isArchived).length
+        };
+
+        container.innerHTML = `
+            <div style="padding:16px;">
+                <div class="info-card">
+                    <div style="font-size:13px;font-weight:600;color:var(--secondary);margin-bottom:8px;">📊 统计</div>
+                    <div class="info-row"><span class="label">所有包裹</span><span class="value">${stats.all}</span></div>
+                    <div class="info-row"><span class="label">运输中</span><span class="value">${stats.transit}</span></div>
+                    <div class="info-row"><span class="label">派送中</span><span class="value">${stats.delivery}</span></div>
+                    <div class="info-row"><span class="label">已签收</span><span class="value">${stats.done}</span></div>
+                    <div class="info-row"><span class="label">已归档</span><span class="value">${stats.archived}</span></div>
+                </div>
+
+                <div class="info-card" style="margin-top:12px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--secondary);margin-bottom:8px;">🔑 快递100 API（可选）</div>
+                    <div class="form-group" style="padding:8px 0;">
+                        <label>API Key</label>
+                        <input type="text" id="apiKeyInput" value="${escapeHtml(apiKey)}" placeholder="输入 API Key" autocomplete="off">
+                    </div>
+                    <div class="form-group" style="padding:8px 0;">
+                        <label>Customer ID</label>
+                        <input type="text" id="customerIdInput" value="${escapeHtml(customerId)}" placeholder="输入 Customer ID" autocomplete="off">
+                    </div>
+                    <button onclick="saveAPISettings()" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;">保存 API 配置</button>
+                    <div style="font-size:12px;color:var(--secondary);margin-top:8px;line-height:1.5;">
+                        💡 <a href="https://api.kuaidi100.com" target="_blank" style="color:var(--blue);">api.kuaidi100.com</a> 注册免费获取<br>
+                        ⚠️ 未配置使用<strong>演示模式</strong>（模拟数据）
+                    </div>
+                </div>
+
+                <div class="info-card" style="margin-top:12px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--secondary);margin-bottom:8px;">💾 数据管理</div>
+                    <button onclick="exportData()" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--bg);color:var(--text);font-size:15px;font-weight:500;cursor:pointer;margin-bottom:8px;">📤 导出备份</button>
+                    <button onclick="document.getElementById('importFile').click()" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--bg);color:var(--text);font-size:15px;font-weight:500;cursor:pointer;margin-bottom:8px;">📥 导入备份</button>
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+                    <button onclick="clearAllData()" style="width:100%;padding:12px;border-radius:10px;border:none;background:rgba(255,59,48,0.1);color:var(--red);font-size:15px;font-weight:500;cursor:pointer;">🗑️ 清除所有数据</button>
+                </div>
+
+                <div class="info-card" style="margin-top:12px;">
+                    <div style="font-size:13px;font-weight:600;color:var(--secondary);margin-bottom:8px;">ℹ️ 关于</div>
+                    <div class="info-row"><span class="label">版本</span><span class="value">2.0.0 (智能识别)</span></div>
+                    <div class="info-row"><span class="label">支持平台</span><span class="value">拼多多、淘宝、天猫、京东、抖音、快手、小红书</span></div>
+                    <div class="info-row"><span class="label">快递公司</span><span class="value">17家自动识别</span></div>
+                </div>
+            </div>
+        `;
+        document.getElementById('settingsOverlay').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeSettings() {
+        document.getElementById('settingsOverlay').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    function saveAPISettings() {
+        localStorage.setItem('kuaidi100_key', document.getElementById('apiKeyInput').value.trim());
+        localStorage.setItem('kuaidi100_customer', document.getElementById('customerIdInput').value.trim());
+        showToast('✅ API 配置已保存');
+    }
+
+    function exportData() {
+        const json = JSON.stringify(packages, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `packages_backup_${new Date().toISOString().slice(0,10)}.json`; a.click();
+        URL.revokeObjectURL(url);
+        showToast('📤 备份已下载');
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!Array.isArray(data)) throw new Error('格式错误');
+                let added = 0;
+                for (const pkg of data) {
+                    if (!packages.some(p => p.trackingNumber === pkg.trackingNumber)) {
+                        if (!pkg.id) pkg.id = generateId();
+                        packages.push(pkg); added++;
+                    }
+                }
+                saveData(); renderList();
+                showToast(`✅ 导入了 ${added} 个包裹`);
+            } catch(err) { showToast('❌ 导入失败'); }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function clearAllData() {
+        if (!confirm('确认清除所有包裹数据？建议先导出备份。')) return;
+        if (!confirm('再次确认：真的要删除所有数据吗？')) return;
+        packages = []; saveData(); renderList(); closeDetail();
+        showToast('🗑️ 已清除');
+    }
+
+    // ============================
+    //  GUIDE (自动获取指南)
+    // ============================
+
+    function openGuide() {
+        document.getElementById('guideContent').innerHTML = `
+            <div style="padding:16px;">
+                <div class="info-card">
+                    <h3 style="margin-bottom:12px;">🚀 推荐方案：智能识别（最快）</h3>
+                    ${renderGuideStep('1', '打开电商 App 的订单详情页', '在拼多多/淘宝/京东 App 中，进入已发货的订单详情')}
+                    ${renderGuideStep('2', '长按 → 全选 → 复制订单信息', '在订单详情页长按，选择<strong>全选</strong>，然后<strong>复制</strong>整个页面的文本')}
+                    ${renderGuideStep('3', '回到本 App → 点击智能识别', '本 App 会自动检测剪贴板中的快递单号，或点击首页的「智能识别快递单号」粘贴文本')}
+                    ${renderGuideStep('4', '确认并批量添加', 'App 自动识别出所有快递单号和快递公司，勾选需要追踪的，一键批量添加')}
+                </div>
+
+                <div style="text-align:center;padding:12px;color:var(--secondary);line-height:1.8;">
+                    🎬 <strong>操作演示流程：</strong><br>
+                    淘宝订单页 → 全选复制 → 打开本App → 自动弹窗识别 → 一键添加<br><br>
+                    ⏱️ <strong>全程不超过 5 秒</strong>
+                </div>
+
+                <div class="info-card" style="margin-top:12px;">
+                    <h3 style="margin-bottom:12px;">📧 进阶方案：邮件自动转发</h3>
+                    <p style="font-size:13px;color:var(--secondary);margin-bottom:12px;">电商平台发货后会发邮件通知，设置自动转发可实现半自动化</p>
+                    ${renderGuideStep('1', '创建 Gmail 过滤器', '在 Gmail 设置中，创建过滤器：<br>发件人包含: service@taobao.com OR pinduoduo.com OR jd.com<br>主题包含: 发货 OR 物流 OR 快递')}
+                    ${renderGuideStep('2', '自动转发到专用邮箱', '将匹配的邮件自动转发到一个专用邮箱')}
+                    ${renderGuideStep('3', '定期导出订单信息', '每周打开一次专用邮箱，全选 → 复制邮件内容 → 智能识别批量导入')}
+                    <div class="email-setup-box">
+                        <h4>📋 常用电商平台发货邮件特征</h4>
+                        <ul>
+                            <li><strong>淘宝/天猫：</strong>service@taobao.com，主题含"已发货"</li>
+                            <li><strong>京东：</strong>noreply@jd.com，主题含"订单已出库"</li>
+                            <li><strong>拼多多：</strong>主题含"发货通知"，发件人含 pinduoduo</li>
+                            <li><strong>抖音电商：</strong>主题含"已发货"，发件人含 douyin</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-card" style="margin-top:12px;">
+                    <h3 style="margin-bottom:12px;">📱 辅助工具推荐</h3>
+                    <p style="font-size:13px;color:var(--secondary);margin-bottom:8px;">以下 App 可以与平台直接对接，自动同步包裹（需要单独安装）：</p>
+                    <div style="font-size:13px;line-height:2;">
+                        <div>🔹 <strong>菜鸟裹裹</strong> — 自动同步淘宝/天猫包裹（推荐）</div>
+                        <div>🔹 <strong>快递100</strong> — 支持多家快递查询</div>
+                        <div>🔹 <strong>京东 App</strong> — 内置物流追踪</div>
+                        <div>🔹 <strong>拼多多 App</strong> — 内置物流追踪</div>
+                        <div style="margin-top:8px;color:var(--secondary);">💡 这些 App 与电商平台有商业合作，可以做到真正的"自动同步"。</div>
+                        <div style="color:var(--secondary);">本 App 的价值在于<strong>一个界面统一查看所有平台</strong>的包裹。</div>
+                    </div>
+                </div>
+
+                <div style="text-align:center;padding:20px;color:var(--secondary);font-size:12px;line-height:1.6;">
+                    ⚠️ <strong>技术说明</strong><br>
+                    iOS 系统限制，第三方 App 无法直接读取电商平台 App 的数据。<br>
+                    这是苹果的安全机制，所有 App 都受此限制。<br>
+                    菜鸟/快递100 能自动同步是因为它们与平台有商业合作协议。<br>
+                    智能识别是目前技术上最接近"自动"的方案。
+                </div>
+            </div>
+        `;
+
+        document.getElementById('guideOverlay').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function renderGuideStep(num, title, desc) {
+        return `
+            <div class="guide-step">
+                <div class="guide-num">${num}</div>
+                <div class="guide-content">
+                    <h4>${title}</h4>
+                    <p>${desc}</p>
+                </div>
+            </div>`;
+    }
+
+    function closeGuide() {
+        document.getElementById('guideOverlay').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    // ============================
+    //  EVENT BINDINGS
+    // ============================
+
+    document.getElementById('btnAdd').addEventListener('click', openAddModal);
+    document.getElementById('btnRefresh').addEventListener('click', refreshAll);
+    document.getElementById('btnSmartScan').addEventListener('click', openSmartScan);
+
+    document.getElementById('searchInput').addEventListener('input', e => { searchQuery = e.target.value; renderList(); });
+    document.getElementById('btnClearSearch').addEventListener('click', () => {
+        document.getElementById('searchInput').value = ''; searchQuery = '';
+        document.getElementById('searchBar').style.display = 'none'; renderList();
+    });
+
+    // Tracking number input
+    document.getElementById('trackingInput').addEventListener('input', e => {
+        const val = e.target.value.trim();
+        const detector = document.getElementById('detectedCarrier');
+        document.getElementById('btnSubmit').disabled = val.length < 6;
+        if (val.length >= 8) {
+            const carrier = detectCarrier(val);
+            detector.style.display = 'flex';
+            if (carrier) {
+                detector.className = 'detected-carrier success';
+                detector.innerHTML = '✅ 识别为：' + carrier.name;
+            } else {
+                detector.className = 'detected-carrier warning';
+                detector.innerHTML = '⚠️ 未能自动识别';
+            }
+        } else { detector.style.display = 'none'; }
+    });
+
+    // Smart scan input
+    document.getElementById('smartScanInput').addEventListener('input', e => triggerSmartParse(e.target.value));
+
+    // Filter chips
+    document.getElementById('filterBar').addEventListener('click', e => {
+        const chip = e.target.closest('.stat-chip');
+        if (!chip) return;
+        currentFilter = chip.dataset.filter;
+        document.querySelectorAll('.stat-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        renderList();
+    });
+
+    // Bottom nav
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+            const tab = item.dataset.tab;
+            closeSettings(); closeGuide();
+            if (tab === 'settings') openSettings();
+            else if (tab === 'guide') openGuide();
+        });
+    });
+
+    // Modal close on overlay click
+    document.getElementById('addModal').addEventListener('click', function(e) { if (e.target === this) closeAddModal(); });
+    document.getElementById('smartScanModal').addEventListener('click', function(e) { if (e.target === this) closeSmartScan(); });
+
+    // Swipe on package list
+    let touchStartX = 0, touchCardId = null;
+    document.getElementById('packageList').addEventListener('touchstart', e => {
+        const card = e.target.closest('.package-card-wrapper');
+        if (card) { touchStartX = e.touches[0].clientX; touchCardId = card.dataset.id; }
+    }, { passive: true });
+    document.getElementById('packageList').addEventListener('touchend', e => {
+        if (!touchCardId) return;
+        if (e.changedTouches[0].clientX - touchStartX < -80) {
+            const actions = [
+                { label: '归档/取消', action: () => toggleArchive(touchCardId) },
+                { label: '删除', action: () => deletePackage(touchCardId) },
+            ];
+            const choice = prompt('操作:\n\n' + actions.map((a,i) => `${i+1}. ${a.label}`).join('\n') + '\n\n输入数字:');
+            if (choice && actions[parseInt(choice)-1]) actions[parseInt(choice)-1].action();
+        }
+        touchCardId = null;
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeAddModal(); closeSmartScan(); closeDetail(); closeSettings(); closeGuide(); }
+    });
+
+    // ============================
+    //  INIT
+    // ============================
+
+    function init() {
+        loadData();
+        renderPlatformGrid();
+        renderList();
+        updateCounts();
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+
+        // Check clipboard on load (with delay to let page render)
+        setTimeout(checkClipboard, 1000);
+
+        // Also check clipboard when page becomes visible again
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                setTimeout(checkClipboard, 500);
+            }
+        });
+
+        // On iOS PWA, listen for the app coming to foreground
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) {
+                setTimeout(checkClipboard, 500);
+            }
+        });
+    }
+
+    init();
+
+    console.log('📦 包裹追踪 PWA v2.0 — 智能识别版');
+    console.log('  🎯 核心功能:');
+    console.log('    1. 剪贴板自动检测 - 复制快递单号后打开App自动弹窗');
+    console.log('    2. 智能文本解析 - 粘贴订单信息批量识别');
+    console.log('    3. 17家快递自动识别');
+    console.log('    4. 8大电商平台支持');
+    console.log('  📖 点击底部「自动获取指南」查看完整使用教程');
+    console.log('  💡 Safari → 分享 → 添加到主屏幕 → 像原生App一样使用');
+    </script>
+</body>
+</html>
