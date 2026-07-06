@@ -1,5 +1,5 @@
 // Service Worker for 包裹追踪 PWA
-const CACHE_NAME = 'package-tracker-v1.0.0';
+const CACHE_NAME = 'package-tracker-v2.0.0';
 const ASSETS = [
     './index.html',
     './manifest.json',
@@ -7,9 +7,9 @@ const ASSETS = [
 
 // Install - cache all assets
 self.addEventListener('install', event => {
+    console.log('📦 SW v2 installing...');
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
-            console.log('📦 缓存静态资源...');
             return cache.addAll(ASSETS);
         }).then(() => {
             return self.skipWaiting();
@@ -19,11 +19,15 @@ self.addEventListener('install', event => {
 
 // Activate - clean old caches
 self.addEventListener('activate', event => {
+    console.log('📦 SW v2 activating, cleaning old caches...');
     event.waitUntil(
         caches.keys().then(keys => {
             return Promise.all(
                 keys.filter(key => key !== CACHE_NAME)
-                    .map(key => caches.delete(key))
+                    .map(key => {
+                        console.log('Deleting old cache:', key);
+                        return caches.delete(key);
+                    })
             );
         }).then(() => {
             return self.clients.claim();
@@ -31,28 +35,42 @@ self.addEventListener('activate', event => {
     );
 });
 
-// Fetch - serve from cache, fallback to network
+// Fetch - Network first for HTML, cache first for others
 self.addEventListener('fetch', event => {
-    // Only handle GET requests
     if (event.request.method !== 'GET') return;
 
+    const url = new URL(event.request.url);
+
+    // For HTML: network first (always get latest), cache fallback
+    if (url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/')) {
+        event.respondWith(
+            fetch(event.request)
+                .then(response => {
+                    const clone = response.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, clone);
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
+
+    // For other assets: cache first, network fallback
     event.respondWith(
         caches.match(event.request).then(cached => {
-            // Return cached response, then update cache in background
             const fetchPromise = fetch(event.request).then(networkResponse => {
-                // Don't cache API responses
-                if (event.request.url.includes('kuaidi100.com')) {
-                    return networkResponse.clone();
+                if (!event.request.url.includes('kuaidi100.com')) {
+                    const clone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, clone);
+                    });
                 }
-
-                const responseClone = networkResponse.clone();
-                caches.open(CACHE_NAME).then(cache => {
-                    cache.put(event.request, responseClone);
-                });
                 return networkResponse;
-            }).catch(() => {
-                // Network failed, return cached version (already handled below)
-            });
+            }).catch(() => {});
 
             return cached || fetchPromise;
         })
