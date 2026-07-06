@@ -1,0 +1,27 @@
+{
+    "name": "包裹追踪",
+    "short_name": "包裹追踪",
+    "description": "统一查询拼多多、淘宝、京东等平台的快递包裹信息",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#f2f2f7",
+    "theme_color": "#007AFF",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%23007AFF'/><text x='96' y='120' font-size='110' text-anchor='middle' fill='white'>📦</text></svg>",
+            "sizes": "192x192",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%23007AFF'/><text x='256' y='320' font-size='300' text-anchor='middle' fill='white'>📦</text></svg>",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "lang": "zh-CN",
+    "dir": "ltr",
+    "categories": ["shopping", "utilities"]
+}
